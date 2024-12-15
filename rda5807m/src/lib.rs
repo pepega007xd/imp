@@ -88,7 +88,7 @@ where
             | ConfigBitFlags::RDS
             | ConfigBitFlags::NEW
             | ConfigBitFlags::ENABLE;
-        let tuning = TuningBitFlag::BAND_87_108_MHZ | TuningBitFlag::SPACE_100_KHZ;
+        let tuning = TuningBitFlag::BAND_76_108_MHZ | TuningBitFlag::SPACE_100_KHZ;
         self.write_register(Register::RDA5807M_REG_CONFIG, config)?;
         self.write_register(Register::RDA5807M_REG_TUNING, tuning)
     }

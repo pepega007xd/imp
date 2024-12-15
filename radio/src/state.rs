@@ -78,7 +78,7 @@ impl AppState {
 
             // frequency control
             (UIElement::FreqControl, true, I::ScrollDown) => {
-                if (self.freq_khz > 87_000) {
+                if (self.freq_khz > 76_000) {
                     self.freq_khz -= 100;
                     command
                         .send(OutputCommand::SetFrequency(self.freq_khz))
