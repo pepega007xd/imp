@@ -1,2 +1,4 @@
+/.embuild
 /target
-.embuild/
+/Cargo.lock
+TODO.md
