@@ -33,7 +33,6 @@ pub fn spawn_tuner_thread(
 
         let mut tuner = Rda5708m::new(i2c_driver, Address::default());
 
-        const EMPTY_TEXT: [char; 64] = [' '; 64];
         tuner.start().unwrap();
         std::thread::sleep(Duration::from_millis(100));
 
@@ -45,6 +44,7 @@ pub fn spawn_tuner_thread(
         let mut prev_freq = 0;
         let mut prev_rssi = 0;
 
+        const EMPTY_TEXT: [char; 64] = [' '; 64];
         let mut radio_text = EMPTY_TEXT;
 
         loop {
