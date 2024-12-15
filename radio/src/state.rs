@@ -4,6 +4,7 @@ use std::sync::mpsc::Sender;
 use crate::{AppState, InputEvent, OutputCommand, UIElement, NUM_PRESETS};
 
 impl UIElement {
+    /// returns the previous UI element in a loop
     fn prev(self) -> Self {
         use UIElement as U;
 
@@ -17,6 +18,7 @@ impl UIElement {
         }
     }
 
+    /// returns the next UI element in a loop
     fn next(self) -> Self {
         use UIElement as U;
 
@@ -43,89 +45,92 @@ impl AppState {
         }
     }
 
+    /// Updates the application state based on the current state and the given input event.
     pub fn process_event(
         &mut self,
         event: InputEvent,
-        command_sender: Sender<OutputCommand>,
+        command: Sender<OutputCommand>,
         nvs: &mut EspNvs<NvsDefault>,
     ) {
+        // names for NVS variables
         const PRESET_NAMES: [&str; 4] = ["preset1", "preset2", "preset3", "preset4"];
+
+        use InputEvent as I;
         match (self.cursor_at, self.cursor_selected, event) {
             // scrolling through UI elements
-            (_, false, InputEvent::ScrollDown) => self.cursor_at = self.cursor_at.prev(),
-            (_, false, InputEvent::ScrollUp) => self.cursor_at = self.cursor_at.next(),
+            (_, false, I::ScrollDown) => self.cursor_at = self.cursor_at.prev(),
+            (_, false, I::ScrollUp) => self.cursor_at = self.cursor_at.next(),
 
             // events from radio
-            (_, _, InputEvent::ChangeFrequency(freq)) => self.freq_khz = freq,
-            (_, _, InputEvent::ChangeStationInfo(_)) => todo!(),
-            (_, _, InputEvent::ChangeRSSI(rssi)) => self.rssi = rssi,
+            (_, _, I::ChangeFrequency(freq)) => self.freq_khz = freq,
+            (_, _, I::ChangeStationInfo(_)) => todo!(),
+            (_, _, I::ChangeRSSI(rssi)) => self.rssi = rssi,
 
             // seek down
-            (UIElement::SeekDown, false, InputEvent::ShortPress) => {
-                command_sender.send(OutputCommand::SeekDown).unwrap()
+            (UIElement::SeekDown, false, I::ShortPress) => {
+                command.send(OutputCommand::SeekDown).unwrap()
             }
 
             // de/selecting frequency or volume control
-            (UIElement::FreqControl | UIElement::VolumeControl, _, InputEvent::ShortPress) => {
+            (UIElement::FreqControl | UIElement::VolumeControl, _, I::ShortPress) => {
                 self.cursor_selected = !self.cursor_selected
             }
 
             // frequency control
-            (UIElement::FreqControl, true, InputEvent::ScrollDown) => {
-                // TODO: freq bounds
-                self.freq_khz -= 100;
-                command_sender
-                    .send(OutputCommand::SetFrequency(self.freq_khz))
-                    .unwrap();
+            (UIElement::FreqControl, true, I::ScrollDown) => {
+                if (self.freq_khz > 87_000) {
+                    self.freq_khz -= 100;
+                    command
+                        .send(OutputCommand::SetFrequency(self.freq_khz))
+                        .unwrap();
+                }
             }
-            (UIElement::FreqControl, true, InputEvent::ScrollUp) => {
-                self.freq_khz = self.freq_khz + 100;
-                command_sender
-                    .send(OutputCommand::SetFrequency(self.freq_khz))
-                    .unwrap();
+            (UIElement::FreqControl, true, I::ScrollUp) => {
+                if (self.freq_khz < 108_000) {
+                    self.freq_khz = self.freq_khz + 100;
+                    command
+                        .send(OutputCommand::SetFrequency(self.freq_khz))
+                        .unwrap();
+                }
             }
 
             // seek up
-            (UIElement::SeekUp, false, InputEvent::ShortPress) => {
-                command_sender.send(OutputCommand::SeekUp).unwrap()
+            (UIElement::SeekUp, false, I::ShortPress) => {
+                command.send(OutputCommand::SeekUp).unwrap()
             }
 
             // select preset
-            (UIElement::Preset(preset), false, InputEvent::ShortPress) => {
+            (UIElement::Preset(preset), false, I::ShortPress) => {
                 if let Ok(Some(freq)) = nvs.get_u32(PRESET_NAMES[preset as usize]) {
                     self.freq_khz = freq;
-                    command_sender
+                    command
                         .send(OutputCommand::SetFrequency(self.freq_khz))
                         .unwrap();
                 }
             }
             // set preset
-            (UIElement::Preset(preset), false, InputEvent::LongPress) => nvs
+            (UIElement::Preset(preset), false, I::LongPress) => nvs
                 .set_u32(PRESET_NAMES[preset as usize], self.freq_khz)
                 .unwrap(),
 
             // volume control
-            (UIElement::VolumeControl, true, InputEvent::ScrollDown) => {
+            (UIElement::VolumeControl, true, I::ScrollDown) => {
                 if self.volume > 0 {
                     self.volume -= 1;
-                    command_sender
-                        .send(OutputCommand::SetVolume(self.volume))
-                        .unwrap();
+                    command.send(OutputCommand::SetVolume(self.volume)).unwrap();
                 }
             }
-            (UIElement::VolumeControl, true, InputEvent::ScrollUp) => {
+            (UIElement::VolumeControl, true, I::ScrollUp) => {
                 if self.volume < 15 {
                     self.volume += 1;
-                    command_sender
-                        .send(OutputCommand::SetVolume(self.volume))
-                        .unwrap();
+                    command.send(OutputCommand::SetVolume(self.volume)).unwrap();
                 }
             }
 
             // ignore all other user inputs
-            (_, _, InputEvent::LongPress) => (),
+            (_, _, I::LongPress) => (),
 
-            // any other combination of inputs should be unreachable
+            // any other combinations should be unreachable
             _ => unreachable!(),
         }
     }

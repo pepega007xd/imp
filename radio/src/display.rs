@@ -11,6 +11,7 @@ use ssd1306::{
     Ssd1306,
 };
 
+/// Setup the SSD1306 display connected through SPI and clear the screen.
 pub fn setup_display(
     spi: SPI3,
     sclk: impl InputPin + OutputPin,
@@ -33,6 +34,7 @@ pub fn setup_display(
         SpiDeviceDriver::new(spi_driver, None as Option<Gpio0>, &SpiConfig::default()).unwrap();
 
     let data_command = PinDriver::output(dc).unwrap();
+
     let interface = SPIInterface::new(spi_device_driver, data_command);
 
     // driver struct contains a large buffer with display content,
@@ -44,6 +46,7 @@ pub fn setup_display(
 
     let mut display_reset = PinDriver::output(reset).unwrap();
 
+    // display must be reset before initialization
     display_reset.set_low().unwrap();
     std::thread::sleep(Duration::from_millis(100));
     display_reset.set_high().unwrap();
@@ -54,5 +57,6 @@ pub fn setup_display(
 
     display.init().unwrap();
     display.flush().unwrap();
+
     display
 }

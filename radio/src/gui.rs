@@ -15,14 +15,20 @@ use ssd1306::{
 
 use crate::{AppState, UIElement, NUM_PRESETS};
 
+type Display<DI, SIZE> = Ssd1306<DI, SIZE, BufferedGraphicsMode<SIZE>>;
+
 impl AppState {
+    /// Redraw the whole GUI according to the current application state
     pub fn update_ui<DI: WriteOnlyDataCommand, SIZE: DisplaySize>(
         &self,
-        display: &mut Ssd1306<DI, SIZE, BufferedGraphicsMode<SIZE>>,
-    ) -> Result<(), <Ssd1306<DI, SIZE, BufferedGraphicsMode<SIZE>> as DrawTarget>::Error> {
+        display: &mut Display<DI, SIZE>,
+    ) -> Result<(), <Display<DI, SIZE> as DrawTarget>::Error> {
         display.clear(BinaryColor::Off)?;
 
+        // style for unselected cursor
         let stroke_style = PrimitiveStyle::with_stroke(BinaryColor::On, 1);
+
+        // style for selected cursor
         let thick_stroke_style = PrimitiveStyleBuilder::new()
             .stroke_width(3)
             .stroke_alignment(StrokeAlignment::Inside)
@@ -31,20 +37,26 @@ impl AppState {
 
         let fill_style = PrimitiveStyle::with_fill(BinaryColor::On);
 
+        // style for RDS text
         let text_style = MonoTextStyle::new(
             &&embedded_graphics::mono_font::ascii::FONT_6X9,
             BinaryColor::On,
         );
+
+        // style for frequency and preset numbers
         let big_text_style = MonoTextStyle::new(
             &embedded_graphics::mono_font::ascii::FONT_10X20,
             BinaryColor::On,
         );
 
+        // arrows for seek buttons
         let left_arrow = Triangle::new(Point::new(0, 0), Point::new(5, -5), Point::new(5, 5))
             .into_styled(fill_style);
         let right_arrow = Triangle::new(Point::new(5, 0), Point::new(0, -5), Point::new(0, 5))
             .into_styled(fill_style);
 
+        // displays a box around the currently active UI element,
+        // if the element is selected, the box is drawn thicker
         let selection_box = |ui_element, x, y, sx, sy, display: &mut _| {
             let style = if self.cursor_selected {
                 thick_stroke_style
@@ -64,14 +76,13 @@ impl AppState {
             }
         };
 
-        // -- Seek down --
+        // -- Seek down button --
         selection_box(UIElement::SeekDown, 0, 0, 20, 20, display)?;
         left_arrow.translate(Point::new(4, 9)).draw(display)?;
         left_arrow.translate(Point::new(10, 9)).draw(display)?;
 
         // -- Frequency setting --
         selection_box(UIElement::FreqControl, 25, 0, 60, 20, display)?;
-
         let freq = self.freq_khz as f32 / 1000.;
         Text::new(
             format!("{freq:.1}").as_str(),
@@ -83,18 +94,14 @@ impl AppState {
         // -- Seek up button --
         selection_box(UIElement::SeekUp, 90, 0, 20, 20, display)?;
         right_arrow.translate(Point::new(94, 9)).draw(display)?;
-
         right_arrow.translate(Point::new(100, 9)).draw(display)?;
 
         // -- Volume control --
-
         selection_box(UIElement::VolumeControl, 115, 0, 13, 40, display)?;
-
         for level in 0..self.volume {
             Rectangle::new(Point::new(117, 34 - level as i32 * 2), Size::new(9, 1))
                 .draw_styled(&fill_style, display)?;
         }
-
         // Level indicator
         selection_box(UIElement::VolumeControl, 109, 45, 19, 19, display)?;
         left_arrow.translate(Point::new(113, 54)).draw(display)?;
@@ -124,13 +131,14 @@ impl AppState {
             selection_box(element, preset * 25, 45, 19, 19, display)?;
 
             Text::new(
-                format!("{preset}").as_str(),
+                format!("{}", preset + 1).as_str(),
                 Point::new(preset * 25 + 5, 60),
                 big_text_style,
             )
             .draw(display)?;
         }
 
+        // draw to the display
         display.flush()
     }
 }

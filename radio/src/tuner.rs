@@ -12,6 +12,11 @@ use std::{
 
 use crate::{InputEvent, OutputCommand};
 
+/// Spawns a new thread, in which the RDA5708 tuner is initialized and
+/// tuned to a default frequency.
+///
+/// Then, commands from the event loop are periodically processed, new data from
+/// the tuner is fetched and sent back to the event loop.
 pub fn spawn_tuner_thread(
     i2c: I2C0,
     sda: impl InputPin + OutputPin,
@@ -46,6 +51,8 @@ pub fn spawn_tuner_thread(
                     OutputCommand::SeekUp => tuner.seek_up(true).unwrap(),
                     OutputCommand::SeekDown => tuner.seek_down(true).unwrap(),
                 }
+
+                thread::sleep(Duration::from_millis(10));
             }
 
             let rssi = tuner.get_rssi().unwrap();
