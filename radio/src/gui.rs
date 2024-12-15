@@ -39,7 +39,7 @@ impl AppState {
 
         // style for RDS text
         let text_style = MonoTextStyle::new(
-            &&embedded_graphics::mono_font::ascii::FONT_6X9,
+            &&embedded_graphics::mono_font::iso_8859_2::FONT_6X9,
             BinaryColor::On,
         );
 
@@ -119,10 +119,16 @@ impl AppState {
         }
 
         // station info
-        Text::new("Station info", Point::new(5, 30), text_style).draw(display)?;
-
-        // station info 2?
-        Text::new("Something else ???", Point::new(5, 40), text_style).draw(display)?;
+        // 19 chars on each line
+        let line1 = self.station_info.chars().take(19).collect::<String>();
+        let line2 = self
+            .station_info
+            .chars()
+            .skip(19)
+            .take(19)
+            .collect::<String>();
+        Text::new(line1.as_str(), Point::new(2, 30), text_style).draw(display)?;
+        Text::new(line2.as_str(), Point::new(2, 40), text_style).draw(display)?;
 
         // -- Preset stations --
         for preset in 0..NUM_PRESETS {

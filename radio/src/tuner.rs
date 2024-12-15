@@ -1,4 +1,5 @@
 use esp_idf_svc::hal::{
+    adc::AdcChannels,
     gpio::{InputPin, OutputPin},
     i2c::{I2cConfig, I2cDriver, I2C0},
     units::KiloHertz,
@@ -26,25 +27,43 @@ pub fn spawn_tuner_thread(
 ) {
     thread::spawn(move || {
         let mut config = I2cConfig::new().baudrate(KiloHertz(100).into());
+
+        // without setting a timeout value, the tuner would occasionally timeout
         config.timeout = Some(Duration::from_millis(10).into());
         let i2c_driver = I2cDriver::new(i2c, sda, scl, &config).unwrap();
 
         let mut tuner = Rda5708m::new(i2c_driver, Address::default());
 
+        const EMPTY_TEXT: [char; 64] = [' '; 64];
         tuner.start().unwrap();
         std::thread::sleep(Duration::from_millis(100));
 
+        // set default values
         tuner.set_seek_threshold(35).unwrap();
         tuner.set_frequency(100_000).unwrap();
-        tuner.set_volume(5).unwrap();
+        tuner.set_volume(0).unwrap(); // TODO: set to 5
 
         let mut prev_freq = 0;
         let mut prev_rssi = 0;
 
+        let mut radio_text = EMPTY_TEXT;
+
         loop {
             let status = tuner.get_status().unwrap();
+            let (blera, blerb) = tuner.get_block_errors().unwrap();
 
             if let Ok(command) = command_receiver.try_recv() {
+                // if the command changes tuner frequency, reset the radio text
+                if let OutputCommand::SetVolume(_) = command {
+                } else {
+                    radio_text = EMPTY_TEXT;
+                    let info = radio_text.iter().collect::<String>();
+                    event_sender
+                        .send(InputEvent::ChangeStationInfo(info))
+                        .unwrap();
+                }
+
+                // process command from event loop
                 match command {
                     OutputCommand::SetFrequency(freq) => tuner.set_frequency(freq).unwrap(),
                     OutputCommand::SetVolume(volume) => tuner.set_volume(volume).unwrap(),
@@ -55,6 +74,7 @@ pub fn spawn_tuner_thread(
                 thread::sleep(Duration::from_millis(10));
             }
 
+            // update RSSI
             let rssi = tuner.get_rssi().unwrap();
             if rssi.abs_diff(prev_rssi) > 5 {
                 event_sender.send(InputEvent::ChangeRSSI(rssi)).unwrap();
@@ -71,15 +91,26 @@ pub fn spawn_tuner_thread(
                 prev_freq = freq;
             }
 
-            // TODO: read rds
-            // let [a, b, c, d] = tuner.get_rds_registers().unwrap();
-            // // println!("{a:x} {b:x} {c:x} {d:x}");
-            // if status.rdss || status.rdsr {
-            //     println!("AAAAAA");
-            // }
-            // let char1 = (c >> 8) as u8 as char;
-            // let char2 = (d >> 8) as u8 as char;
-            // // println!("{char1}{char2}");
+            // update Radio Text
+            if status.rdss {
+                let [_, block_b, block_c, block_d] = tuner.get_rds_registers().unwrap();
+                let group_type = (block_b >> 12) & 0xF;
+
+                // only display characters if there are no detected errors
+                if group_type == 2 && blera == 0 && blerb == 0 {
+                    let offset = block_b & 0xF;
+
+                    radio_text[(offset * 4 + 0) as usize] = (block_c >> 8) as u8 as char;
+                    radio_text[(offset * 4 + 1) as usize] = (block_c & 0xFF) as u8 as char;
+                    radio_text[(offset * 4 + 2) as usize] = (block_d >> 8) as u8 as char;
+                    radio_text[(offset * 4 + 3) as usize] = (block_d & 0xFF) as u8 as char;
+
+                    let info = radio_text.iter().collect::<String>();
+                    event_sender
+                        .send(InputEvent::ChangeStationInfo(info))
+                        .unwrap();
+                }
+            }
 
             thread::sleep(Duration::from_millis(100));
         }

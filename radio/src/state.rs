@@ -37,7 +37,7 @@ impl AppState {
     pub fn new() -> AppState {
         AppState {
             freq_khz: 100_000,
-            volume: 5,
+            volume: 0,
             station_info: "".to_string(),
             rssi: 0,
             cursor_at: UIElement::SeekDown,
@@ -63,7 +63,7 @@ impl AppState {
 
             // events from radio
             (_, _, I::ChangeFrequency(freq)) => self.freq_khz = freq,
-            (_, _, I::ChangeStationInfo(_)) => todo!(),
+            (_, _, I::ChangeStationInfo(info)) => self.station_info = info,
             (_, _, I::ChangeRSSI(rssi)) => self.rssi = rssi,
 
             // seek down

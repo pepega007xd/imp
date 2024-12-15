@@ -259,6 +259,14 @@ where
             self.read_register(Register::RDA5807M_REG_RDSD)?,
         ])
     }
+
+    pub fn get_block_errors(&mut self) -> Result<(u8, u8), Error<E>> {
+        let reg = self.read_register(Register::RDA5807M_REG_RSSI)? as u8;
+        let blera = (reg >> 2) & 0b11;
+        let blerb = reg & 0b11;
+
+        Ok((blera, blerb))
+    }
 }
 
 // I2C device address
