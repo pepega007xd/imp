@@ -30,13 +30,13 @@ pub fn spawn_button_listener(button_pin: impl InputPin, event_sender: Sender<Inp
 /// Spawns a new thread which waits on a turn of the rotary encoder using interrupt,
 /// then sends an input event to the event loop.
 pub fn spawn_encoder_listener(
-    encoder_clock: impl InputPin,
-    encoder_data: impl InputPin,
+    s1: impl InputPin,
+    s2: impl InputPin,
     event_sender: Sender<InputEvent>,
 ) {
     thread::spawn(move || {
-        let mut encoder_clock = PinDriver::input(encoder_clock).unwrap();
-        let encoder_data = PinDriver::input(encoder_data).unwrap();
+        let mut encoder_clock = PinDriver::input(s1).unwrap();
+        let encoder_data = PinDriver::input(s2).unwrap();
 
         let mut second = false;
 
