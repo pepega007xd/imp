@@ -58,7 +58,7 @@ impl AppState {
         // displays a box around the currently active UI element,
         // if the element is selected, the box is drawn thicker
         let selection_box = |ui_element, x, y, sx, sy, display: &mut _| {
-            let style = if self.cursor_selected {
+            let style = if self.element_is_active {
                 thick_stroke_style
             } else {
                 stroke_style

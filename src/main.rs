@@ -75,7 +75,7 @@ struct AppState {
 
     /// Whether the current UI element is selected for manipulation
     /// (valid only for frequency and volume control, otherwise always false)
-    cursor_selected: bool,
+    element_is_active: bool,
 }
 
 fn main() {
@@ -134,7 +134,7 @@ fn main() {
 
     // event loop - wait for next input event, process it, and update GUI
     while let Ok(event) = event_receiver.recv() {
-        state.process_event(event, command_sender.clone(), &mut nvs);
+        state.process_event(event, &command_sender, &mut nvs);
         state.update_ui(&mut display).unwrap();
     }
 }

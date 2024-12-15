@@ -41,7 +41,7 @@ impl AppState {
             station_info: "".to_string(),
             rssi: 0,
             cursor_at: UIElement::SeekDown,
-            cursor_selected: false,
+            element_is_active: false,
         }
     }
 
@@ -49,14 +49,14 @@ impl AppState {
     pub fn process_event(
         &mut self,
         event: InputEvent,
-        command: Sender<OutputCommand>,
+        command: &Sender<OutputCommand>,
         nvs: &mut EspNvs<NvsDefault>,
     ) {
         // names for NVS variables
         const PRESET_NAMES: [&str; 4] = ["preset1", "preset2", "preset3", "preset4"];
 
         use InputEvent as I;
-        match (self.cursor_at, self.cursor_selected, event) {
+        match (self.cursor_at, self.element_is_active, event) {
             // scrolling through UI elements
             (_, false, I::ScrollDown) => self.cursor_at = self.cursor_at.prev(),
             (_, false, I::ScrollUp) => self.cursor_at = self.cursor_at.next(),
@@ -73,12 +73,12 @@ impl AppState {
 
             // de/selecting frequency or volume control
             (UIElement::FreqControl | UIElement::VolumeControl, _, I::ShortPress) => {
-                self.cursor_selected = !self.cursor_selected
+                self.element_is_active = !self.element_is_active
             }
 
             // frequency control
             (UIElement::FreqControl, true, I::ScrollDown) => {
-                if (self.freq_khz > 76_000) {
+                if self.freq_khz > 76_000 {
                     self.freq_khz -= 100;
                     command
                         .send(OutputCommand::SetFrequency(self.freq_khz))
@@ -86,7 +86,7 @@ impl AppState {
                 }
             }
             (UIElement::FreqControl, true, I::ScrollUp) => {
-                if (self.freq_khz < 108_000) {
+                if self.freq_khz < 108_000 {
                     self.freq_khz = self.freq_khz + 100;
                     command
                         .send(OutputCommand::SetFrequency(self.freq_khz))

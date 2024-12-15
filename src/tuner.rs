@@ -1,5 +1,4 @@
 use esp_idf_svc::hal::{
-    adc::AdcChannels,
     gpio::{InputPin, OutputPin},
     i2c::{I2cConfig, I2cDriver, I2C0},
     units::KiloHertz,
