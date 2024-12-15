@@ -35,22 +35,20 @@ pub fn spawn_encoder_listener(
     event_sender: Sender<InputEvent>,
 ) {
     thread::spawn(move || {
-        let mut encoder_clock = PinDriver::input(s1).unwrap();
-        let encoder_data = PinDriver::input(s2).unwrap();
+        let mut s1 = PinDriver::input(s1).unwrap();
+        let s2 = PinDriver::input(s2).unwrap();
 
         let mut second = false;
 
         loop {
             esp_idf_hal::task::block_on(async {
-                encoder_clock.wait_for_rising_edge().await.unwrap();
+                s1.wait_for_rising_edge().await.unwrap();
             });
-            let clk = encoder_clock.get_level();
-            let data = encoder_data.get_level();
 
             // the rotary encoder generates two rising edges each turn, filter out every other
             // (this is consistent, given by the construction of the module, not by any bouncing)
             if !second {
-                if data == clk {
+                if s2.get_level() == s1.get_level() {
                     event_sender.send(InputEvent::ScrollUp).unwrap();
                 } else {
                     event_sender.send(InputEvent::ScrollDown).unwrap();
